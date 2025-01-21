@@ -1,0 +1,4 @@
+lightrag-hku==1.1.1
+openai
+textract
+inspect
