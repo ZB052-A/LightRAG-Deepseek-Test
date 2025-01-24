@@ -1,12 +1,12 @@
-from fastapi import FastAPI, File, UploadFile, Request, Form
+from fastapi import FastAPI, File, UploadFile, Request, Form, HTTPException
 from fastapi.responses import RedirectResponse, StreamingResponse
 from typing import AsyncGenerator
 from pydantic import BaseModel
 import uvicorn
 import os
+from typing import Optional
 import json
 import asyncio
-from openai import OpenAI
 
 from agents.lightrag import LightRAGAgent
 
@@ -19,11 +19,11 @@ async def root():
     return RedirectResponse(url="/docs")
 
 rag = LightRAGAgent()
+asyncio.run(rag.init_rag())
 
 # 列出文件列表
 @app.get("/file/list/")
 async def list_files():
-    await rag.init_rag()
     files = os.listdir(FILE_STORAGE_DIR)
     if len(files) == 0:
         return {"files": []}
@@ -59,7 +59,6 @@ async def process_file(files: list[UploadFile], text: str):
 # 添加文件并总结
 @app.post("/file/add_and_summarize/")
 async def add_file_and_summarize(files: list[UploadFile] = File(...), text: str = Form(...)):
-    await rag.init_rag()
     results = []
 
     # 将文件分为多个批次，每个批次最多包含10个文件
@@ -71,9 +70,8 @@ async def add_file_and_summarize(files: list[UploadFile] = File(...), text: str 
     return results
     
 # 删除文件
-@app.delete("/file/delete")
+@app.delete("/file/delete/")
 async def delete_file(filename: str):
-    await rag.init_rag()
     files = os.listdir(FILE_STORAGE_DIR)
     if len(files) == 0:
         return {"error": "No files found in the storage directory."}
@@ -94,10 +92,8 @@ async def delete_file(filename: str):
         return {"summary": "文件删除失败，请检查服务器实现方式。"}
 
 # 文件模块自检
-@app.get("/file/health")
+@app.get("/file/health/")
 async def file_health_check():
-    await rag.init_rag()
-
     response = await rag.test_funcs()
     files = os.listdir(FILE_STORAGE_DIR)
     if len(files) == 0:
